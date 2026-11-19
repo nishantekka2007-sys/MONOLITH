@@ -1,45 +1,48 @@
 # MONOLITH
 
-A focused, browser-based playground for experimenting with Groq-hosted language models.
+A browser-based LLM playground powered by each visitor's own Groq API account.
 
 ## Features
 
+- Personal API key setup for every visitor
 - Multi-message chat with system, user, and assistant roles
 - Model selection and generation controls
 - Streaming and non-streaming responses
 - Prompt templates and conversation import/export
 - Responsive desktop, tablet, and mobile workspace
 
+## Connect your Groq account
+
+1. Open MONOLITH and choose **My API key** in the left sidebar (or **Manage my API key** in Configuration).
+2. Create a key in the [Groq Console](https://console.groq.com/keys).
+3. Paste and save the key. It is stored in that browser profile, not in the MONOLITH repository.
+4. Select a model and start chatting.
+
+Each visitor supplies their own key and uses their own Groq account, quota, and billing. MONOLITH does not require the site owner to configure a shared `GROQ_API_KEY`.
+
+## Key handling
+
+- The key is stored in the visitor's browser `localStorage` so it remains available on their next visit.
+- Each API request sends the key over HTTPS to the MONOLITH serverless proxy in the `X-Groq-API-Key` request header.
+- The proxy forwards the key to Groq and does not write it to files, logs, or persistent server storage.
+- The key is not included in chat request bodies or GitHub source files.
+- On shared devices, remove the key after use. Visitors can remove it at any time from **My API key**.
+- Use a trusted MONOLITH deployment; the site operator controls the frontend and server code.
+
 ## Deploy on Vercel
 
 1. Import this repository into Vercel.
-2. Add `GROQ_API_KEY` under **Project → Settings → Environment Variables**.
-3. Enable it for Production (and Preview if needed).
-4. Redeploy, then open the deployment URL.
-
-The key is read only by the `/api/groq` serverless function. It is not embedded in the HTML, committed to Git, or stored in browser local storage.
+2. No Groq API key environment variable is required.
+3. Deploy the project. Each visitor connects their own key in the app.
 
 ## Local development
 
-Install Node.js 18 or newer and the Vercel CLI:
+Use Node.js 18 or newer and the Vercel CLI:
 
 ```bash
 npm install -g vercel
 vercel dev
 ```
-
-Create a local `.env.local` file (never commit it):
-
-```env
-GROQ_API_KEY=gsk_your_key_here
-```
-
-## Security
-
-- Never commit real API keys or place them in client-side code.
-- Keep `GROQ_API_KEY` in Vercel Environment Variables.
-- Rotate any key that has been exposed.
-- The API route allows only model-list and chat-completion requests.
 
 ## Stack
 
