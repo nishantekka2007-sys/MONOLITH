@@ -1,19 +1,44 @@
 "use strict";
 
+// Best-effort per-instance throttling to reduce accidental or automated quota abuse.
+const buckets = new Map();
+const WINDOW_MS = 10 * 60 * 1000;
+const MAX_REQUESTS = 20;
+
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) {
-    return res.status(503).json({ error: "Server is not configured. Add GROQ_API_KEY to Vercel Environment Variables and redeploy." });
+  const origin = req.headers.origin;
+  const host = req.headers.host;
+  if (origin) {
+    try { if (new URL(origin).host !== host) return res.status(403).json({ error: "Origin not allowed" }); }
+    catch { return res.status(403).json({ error: "Invalid origin" }); }
   }
+
+  const forwarded = req.headers["x-forwarded-for"];
+  const ip = (Array.isArray(forwarded) ? forwarded[0] : String(forwarded || "")).split(",")[0].trim() || "unknown";
+  const now = Date.now();
+  const bucket = buckets.get(ip) || { count: 0, reset: now + WINDOW_MS };
+  if (now > bucket.reset) { bucket.count = 0; bucket.reset = now + WINDOW_MS; }
+  bucket.count += 1;
+  buckets.set(ip, bucket);
+  if (bucket.count > MAX_REQUESTS) {
+    res.setHeader("Retry-After", String(Math.ceil((bucket.reset - now) / 1000)));
+    return res.status(429).json({ error: "Too many requests. Please wait before trying again." });
+  }
+
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) return res.status(503).json({ error: "Server is not configured. Add GROQ_API_KEY to Vercel Environment Variables and redeploy." });
 
   const { action, ...payload } = req.body || {};
   if (action !== "models" && action !== "chat/completions") {
     return res.status(400).json({ error: "Unsupported API action." });
+  }
+  if (action === "chat/completions" && (!Array.isArray(payload.messages) || !payload.messages.length || typeof payload.model !== "string")) {
+    return res.status(400).json({ error: "A model and at least one message are required." });
   }
 
   const controller = new AbortController();
@@ -27,7 +52,6 @@ module.exports = async function handler(req, res) {
       ...(isModels ? {} : { body: JSON.stringify(payload) }),
       signal: controller.signal
     });
-
     res.statusCode = upstream.status;
     res.setHeader("Content-Type", upstream.headers.get("content-type") || "application/json");
     res.setHeader("Cache-Control", "no-store");
