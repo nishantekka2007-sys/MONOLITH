@@ -189,7 +189,7 @@ details{border-top:1px solid var(--line);padding:12px 0}summary{cursor:pointer;f
      <button class="starter" data-template="explain"><strong>◫ &nbsp; Understand a concept</strong><span>Break down a technical topic with examples.</span></button>
      <button class="starter" data-template="fewshot"><strong>≋ &nbsp; Try few-shot prompting</strong><span>Classify a new input using explicit examples.</span></button>
     </div>
-    <div class="mini-label">Compose below to begin · API key required for live generation</div>
+    <div class="mini-label">Compose below to begin · secure server-side Groq connection</div>
    </div>
    <div class="messages" id="messages"></div>
   </section>
@@ -351,7 +351,7 @@ async function generate(overrideMessages){
  const assistant={role:"assistant",content:""};c.messages.push(assistant);state.generating=true;state.controller=new AbortController();setGenerating(true);render();
  try{
   const stream=$("streaming").checked;
-  const res=await fetch(API_BASE+"/chat/completions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"chat/completions",...requestBody(messages,settings,stream)}),signal:state.controller.signal});
+  const res=await fetch(API_BASE,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"chat/completions",...requestBody(messages,settings,stream)}),signal:state.controller.signal});
   if(!res.ok){let detail="";try{const j=await res.json();detail=j.error?.message||j.message||""}catch{};const msg=res.status===401?"Invalid API key. Check your Groq key.":res.status===429?"Groq rate limit or quota reached. Wait and retry.":res.status===404?"Model not found or unavailable to this account. Verify the model ID.":`Groq request failed (HTTP ${res.status}).`;throw Error(detail?msg+" "+detail:msg)}
   if(stream&&res.body&&res.body.getReader){
    const reader=res.body.getReader(),decoder=new TextDecoder();let buffer="";
