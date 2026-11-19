@@ -157,7 +157,7 @@ details{border-top:1px solid var(--line);padding:12px 0}summary{cursor:pointer;f
   <button class="navitem" id="importBtn"><span class="glyph">⇧</span> Import conversation</button>
   <button class="navitem" id="exportBtn"><span class="glyph">⇩</span> Export conversation</button>
   <div class="section-label">System</div>
-  <button class="navitem" id="apiBtn"><span class="glyph">⌘</span> API configuration</button>
+  <button class="navitem" id="apiBtn"><span class="glyph">⌘</span> My API key</button>
   <button class="navitem" id="aboutBtn"><span class="glyph">ⓘ</span> About Monolith</button>
   <div class="side-bottom">
    <div class="mini-label">Active model</div>
@@ -254,8 +254,8 @@ details{border-top:1px solid var(--line);padding:12px 0}summary{cursor:pointer;f
   </div>
   <div class="control-group">
    <div class="control-title">Connection <span class="mini-label">SECURITY</span></div>
-   <div class="status-card"><span class="status-dot" id="connectionDot"></span><span id="connectionText">No API key configured</span></div>
-   <button class="btn small" id="openApi" style="width:100%;margin-top:9px">Configure API key</button>
+   <div class="status-card"><span class="status-dot" id="connectionDot"></span><span id="connectionText">Add your personal Groq API key</span></div>
+   <button class="btn small" id="openApi" style="width:100%;margin-top:9px">Manage my API key</button>
   </div>
  </aside>
 </div>
@@ -269,7 +269,10 @@ details{border-top:1px solid var(--line);padding:12px 0}summary{cursor:pointer;f
 (() => {
 "use strict";
 const API_BASE="/api/groq";
+const API_KEY_SLOT="monolith.groq.apiKey";
 const $=id=>document.getElementById(id);
+function getApiKey(){try{return localStorage.getItem(API_KEY_SLOT)||""}catch{return ""}}
+function apiHeaders(){const key=getApiKey();if(!key)throw Error("Add your Groq API key in My API key before using MONOLITH.");return {"Content-Type":"application/json","X-Groq-API-Key":key}}
 const state={model:"openai/gpt-oss-120b",models:[],conversations:[],activeId:null,controller:null,generating:false,source:"fallback"};
 const templates={
  python:"Write a robust Python solution for the following problem. Explain the approach, provide clean code with type hints, and include time and space complexity.\n\nProblem: ",
@@ -315,7 +318,7 @@ function render(){
 }
 function addMessage(role,content){const c=active();if(!c)return; c.messages.push({role,content:String(content)});if(c.title==="Untitled session"&&role==="user"){c.title=content.slice(0,34).replace(/\s+/g," ")||"New conversation"}render()}
 function updateCounts(){const s=$("composer").value;$("counts").textContent=`${s.length} characters · ~${Math.ceil(s.length/4)} tokens`;}
-function updateConnection(){$("connectionDot").className="status-dot";$("connectionText").textContent="Secure server-side connection";$("sideStatus").className="status-dot";$("sideConnection").textContent="API key stored on server";}
+function updateConnection(){const connected=!!getApiKey();$("connectionDot").className="status-dot"+(connected?" ok":" bad");$("connectionText").textContent=connected?"Personal Groq key saved in this browser":"No personal API key configured";$("sideStatus").className="status-dot"+(connected?" ok":" bad");$("sideConnection").textContent=connected?"Your Groq key · browser only":"Add your own Groq key";}
  function updateEffective(){const v={model:state.model,temperature:+$("temperature").value,max_tokens:+$("maxTokens").value,top_p:+$("topP").value};$("effective").textContent=Object.entries(v).map(([k,x])=>`${k}: ${typeof x==="number"?x.toFixed(k==="max_tokens"?0:2):x}`).join("\n");}
 function classify(){
  const msgs=(active()?.messages||[]).filter(m=>m.role==="user").map(m=>m.content).join("\n");
@@ -351,7 +354,7 @@ async function generate(overrideMessages){
  const assistant={role:"assistant",content:""};c.messages.push(assistant);state.generating=true;state.controller=new AbortController();setGenerating(true);render();
  try{
   const stream=$("streaming").checked;
-  const res=await fetch(API_BASE,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"chat/completions",...requestBody(messages,settings,stream)}),signal:state.controller.signal});
+  const res=await fetch(API_BASE,{method:"POST",headers:apiHeaders(),body:JSON.stringify({action:"chat/completions",...requestBody(messages,settings,stream)}),signal:state.controller.signal});
   if(!res.ok){let detail="";try{const j=await res.json();detail=j.error?.message||j.message||""}catch{};const msg=res.status===401?"Invalid API key. Check your Groq key.":res.status===429?"Groq rate limit or quota reached. Wait and retry.":res.status===404?"Model not found or unavailable to this account. Verify the model ID.":`Groq request failed (HTTP ${res.status}).`;throw Error(detail?msg+" "+detail:msg)}
   if(stream&&res.body&&res.body.getReader){
    const reader=res.body.getReader(),decoder=new TextDecoder();let buffer="";
@@ -373,7 +376,19 @@ async function generate(overrideMessages){
 }
 function updateStreamingMessage(content){const el=$("messages").lastElementChild;if(el){const body=el.querySelector(".msg-body");if(body)body.innerHTML=formatContent(content);$("chatScroll").scrollTop=$("chatScroll").scrollHeight}}
 function setGenerating(on){$("sendBtn").disabled=on;$("sendBtn").textContent=on?"Generating…":"Generate ↗";$("stopBtn").disabled=!on;$("composer").disabled=on}
-function apiDialog(){modal("Secure API connection","<p>MONOLITH routes requests through a server-side function. Your Groq API key is never entered into this page, stored in browser storage, or sent to the browser.</p><p>Add <code>GROQ_API_KEY</code> to your Vercel project Environment Variables, then redeploy.</p><div class=\"status-card\">Never place API keys in HTML, JavaScript, GitHub commits, or public environment variables.</div>");}
+function apiDialog(){
+ const saved=getApiKey();
+ modal("My Groq API key",`<p>Connect your own Groq account. Each visitor enters their own key; MONOLITH does not use a shared owner key.</p>
+ <label class="field-label" for="personalApiKey">Groq API key</label>
+ <input class="field" id="personalApiKey" type="password" autocomplete="off" spellcheck="false" placeholder="gsk_…" value="${safeText(saved)}">
+ <label class="checkline"><input type="checkbox" id="showPersonalKey"> Show API key</label>
+ <p class="help">Your key is saved only in this browser profile and sent over HTTPS to the MONOLITH serverless proxy for each request. The proxy forwards it to Groq and does not save it. On a shared computer, remove the key when finished.</p>
+ <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button class="btn primary" id="savePersonalKey">Save key</button><button class="btn danger" id="removePersonalKey">Remove key</button></div>
+ <div class="status-card" style="margin-top:12px">Create or manage keys at <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer">Groq Console · API Keys</a>. Never share your key or commit it to GitHub.</div>`);
+ $("showPersonalKey").onchange=()=>{$("personalApiKey").type=$("showPersonalKey").checked?"text":"password"};
+ $("savePersonalKey").onclick=()=>{const key=$("personalApiKey").value.trim();if(!key){toast("Paste your Groq API key first.");return}try{localStorage.setItem(API_KEY_SLOT,key)}catch{toast("Browser storage is unavailable. Enable local storage to save your key.");return}closeModal();updateConnection();toast("Your personal API key is saved in this browser.")};
+ $("removePersonalKey").onclick=()=>{try{localStorage.removeItem(API_KEY_SLOT)}catch{}closeModal();updateConnection();toast("Your saved API key was removed from this browser.")};
+}
  function templatesDialog(){const names=[["python","Python code generation"],["debug","Code debugging"],["explain","Technical explanation"],["summary","Text summarization"],["creative","Creative writing"],["analysis","Data analysis"],["email","Email drafting"],["json","JSON generation"],["classify","Classification"],["fewshot","Few-shot prompting"]];modal("Prompt library",`<p>Choose a starting point. The template is inserted into the composer and is not sent automatically.</p><div style="display:grid;gap:7px">${names.map(([k,n])=>`<button class="btn" style="justify-content:space-between" data-use-template="${k}">${n}<span>↗</span></button>`).join("")}</div>`)}
 function exportConversation(){const c=active();if(!c){toast("No conversation to export.");return}const blob=new Blob([JSON.stringify({format:"monolith-conversation",version:1,title:c.title,created:c.created,messages:c.messages},null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="monolith-conversation.json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);toast("Conversation exported")}
 function importConversation(file){const reader=new FileReader();reader.onload=()=>{try{const data=JSON.parse(reader.result);const msgs=Array.isArray(data)?data:data.messages;if(!Array.isArray(msgs)||!msgs.length)throw Error("The file must contain a non-empty messages array.");const clean=msgs.map((m,i)=>{if(!m||!["system","user","assistant"].includes(m.role)||typeof m.content!=="string")throw Error(`Invalid message at position ${i+1}.`);return {role:m.role,content:m.content}});const c={id:String(Date.now()),title:String(data.title||"Imported conversation").slice(0,60),created:Date.now(),messages:clean};state.conversations.unshift(c);state.activeId=c.id;render();toast("Conversation imported")}catch(e){toast("Import failed: "+e.message)}};reader.onerror=()=>toast("Could not read the selected file.");reader.readAsText(file)}
@@ -383,7 +398,7 @@ function fallbackCopy(text){const t=document.createElement("textarea");t.value=t
 function regenerate(){const c=active();if(!c)return;let i=c.messages.length-1;if(i<0||c.messages[i].role!=="assistant"){toast("No assistant response to regenerate.");return}c.messages.pop();const msgs=c.messages.map(m=>({role:m.role,content:m.content}));generate(msgs)}
 // Events
 $("newChat").onclick=newConversation;$("menuToggle").onclick=()=>openDrawer("sidebar");$("configToggle").onclick=()=>openDrawer("config");$("closeConfig").onclick=closeDrawers;$("shade").onclick=closeDrawers;
-$("apiBtn").onclick=apiDialog;$("openApi").onclick=apiDialog;$("aboutBtn").onclick=()=>modal("About MONOLITH AI",`<p><b>Explore. Experiment. Engineer Intelligence.</b></p><p>MONOLITH is a Groq-powered LLM playground. Requests are routed through a server-side function so the API key remains in Vercel environment variables.</p><p>The browser never receives the API key. Model availability depends on the connected Groq account.</p><p class="mini-label">MONOLITH · VERSION 1.1</p>`);$("templatesBtn").onclick=templatesDialog;
+$("apiBtn").onclick=apiDialog;$("openApi").onclick=apiDialog;$("aboutBtn").onclick=()=>modal("About MONOLITH AI",`<p><b>Explore. Experiment. Engineer Intelligence.</b></p><p>MONOLITH is a Groq-powered LLM playground. Every visitor connects their own Groq API key in the My API key section.</p><p>Keys are stored per browser profile and passed over HTTPS to a server-side proxy for forwarding to Groq. They are not stored by the server. Model availability depends on each visitor’s Groq account.</p><p class="mini-label">MONOLITH · VERSION 1.1</p>`);$("templatesBtn").onclick=templatesDialog;
 $("exportBtn").onclick=exportConversation;$("importBtn").onclick=()=>$("importFile").click();$("importFile").onchange=e=>{if(e.target.files[0])importConversation(e.target.files[0]);e.target.value=""};
 $("copyAll").onclick=()=>copy((active()?.messages||[]).map(m=>`[${m.role.toUpperCase()}]\n${m.content}`).join("\n\n"));
 $("clearChat").onclick=()=>{const c=active();if(c){c.messages=[];c.title="Untitled session";render();toast("Conversation cleared")}};
@@ -400,7 +415,7 @@ $("temperature").oninput=()=>{$("tempOut").textContent=(+$("temperature").value)
 ["maxTokens","presencePenalty","frequencyPenalty","seed","stopSequences","responseFormat"].forEach(id=>$(id).addEventListener("input",updateEffective));
 $("modelSelect").onchange=()=>{if($("modelSelect").value!=="custom")state.model=$("modelSelect").value;else{$("manualModel").focus();return}render()};
 $("manualModel").onchange=()=>{const v=$("manualModel").value.trim();if(v){state.model=v;$("modelSource").textContent="Manually entered model ID";render()}};
-$("discoverModels").onclick=async()=>{const b=$("discoverModels");b.disabled=true;b.textContent="Discovering…";try{const r=await fetch(API_BASE,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"models"})});if(!r.ok)throw Error("HTTP "+r.status);const d=await r.json();state.models=(d.data||[]).map(x=>x.id).filter(Boolean).sort();if(!state.models.length)throw Error("No model IDs returned.");const sel=$("modelSelect");[...sel.querySelectorAll("option[data-dynamic]")].forEach(o=>o.remove());state.models.forEach(id=>{if(![...sel.options].some(o=>o.value===id)){const o=new Option(id,id);o.dataset.dynamic="1";sel.insertBefore(o,sel.querySelector('option[value="custom"]'))}});state.source="dynamic";$("modelSource").textContent=`${state.models.length} dynamically discovered models`;toast("Model list updated")}catch(e){toast("Model discovery failed: "+e.message)}finally{b.disabled=false;b.textContent="↻ Discover available models"}};
+$("discoverModels").onclick=async()=>{const b=$("discoverModels");b.disabled=true;b.textContent="Discovering…";try{const r=await fetch(API_BASE,{method:"POST",headers:apiHeaders(),body:JSON.stringify({action:"models"})});if(!r.ok)throw Error("HTTP "+r.status);const d=await r.json();state.models=(d.data||[]).map(x=>x.id).filter(Boolean).sort();if(!state.models.length)throw Error("No model IDs returned.");const sel=$("modelSelect");[...sel.querySelectorAll("option[data-dynamic]")].forEach(o=>o.remove());state.models.forEach(id=>{if(![...sel.options].some(o=>o.value===id)){const o=new Option(id,id);o.dataset.dynamic="1";sel.insertBefore(o,sel.querySelector('option[value="custom"]'))}});state.source="dynamic";$("modelSource").textContent=`${state.models.length} dynamically discovered models`;toast("Model list updated")}catch(e){toast("Model discovery failed: "+e.message)}finally{b.disabled=false;b.textContent="↻ Discover available models"}};
 $("inspectShot").onclick=()=>{const r=classify();modal("Prompt-shot inspection",`<p><b>${r.type}</b> · ${r.n} explicit demonstration(s) detected.</p><p>This heuristic only counts labelled input/output or example/label pairs inside user-provided messages. Contextual descriptions and system messages are not counted. It is an estimate, not definitive linguistic analysis.</p>${r.evidence.length?`<div style="display:grid;gap:7px">${r.evidence.map((x,i)=>`<div class="status-card"><b>Evidence ${i+1}</b><br>${safeText(x.slice(0,450))}</div>`).join("")}</div>`:"<p>No qualifying labelled pairs were found in user messages.</p>"}`)};
 $("modalClose").onclick=closeModal;$("modal").onclick=e=>{if(e.target===$("modal"))closeModal()};
 $("modalContent").onclick=e=>{const b=e.target.closest("[data-use-template]");if(b){$("composer").value=templates[b.dataset.useTemplate];updateCounts();closeModal();$("composer").focus()}};
