@@ -18,20 +18,10 @@ module.exports = async function handler(req, res) {
     catch { return res.status(403).json({ error: "Invalid origin" }); }
   }
 
-  const forwarded = req.headers["x-forwarded-for"];
-  const ip = (Array.isArray(forwarded) ? forwarded[0] : String(forwarded || "")).split(",")[0].trim() || "unknown";
-  const now = Date.now();
-  const bucket = buckets.get(ip) || { count: 0, reset: now + WINDOW_MS };
-  if (now > bucket.reset) { bucket.count = 0; bucket.reset = now + WINDOW_MS; }
-  bucket.count += 1;
-  buckets.set(ip, bucket);
-  if (bucket.count > MAX_REQUESTS) {
-    res.setHeader("Retry-After", String(Math.ceil((bucket.reset - now) / 1000)));
-    return res.status(429).json({ error: "Too many requests. Please wait before trying again." });
+  const apiKey = req.headers["x-groq-api-key"];
+  if (typeof apiKey !== "string" || !apiKey.trim() || apiKey.length > 512) {
+    return res.status(401).json({ error: "Add your personal Groq API key in MONOLITH's My API key section." });
   }
-
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) return res.status(503).json({ error: "Server is not configured. Add GROQ_API_KEY to Vercel Environment Variables and redeploy." });
 
   const { action, ...payload } = req.body || {};
   if (action !== "models" && action !== "chat/completions") {
@@ -48,7 +38,7 @@ module.exports = async function handler(req, res) {
     const isModels = action === "models";
     const upstream = await fetch("https://api.groq.com/openai/v1/" + action, {
       method: isModels ? "GET" : "POST",
-      headers: { "Authorization": "Bearer " + apiKey, "Content-Type": "application/json" },
+      headers: { "Authorization": "Bearer " + apiKey.trim(), "Content-Type": "application/json" },
       ...(isModels ? {} : { body: JSON.stringify(payload) }),
       signal: controller.signal
     });
@@ -56,6 +46,7 @@ module.exports = async function handler(req, res) {
     res.setHeader("Content-Type", upstream.headers.get("content-type") || "application/json");
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Referrer-Policy", "no-referrer");
     if (!upstream.body) return res.end();
     for await (const chunk of upstream.body) {
       if (res.destroyed) break;
