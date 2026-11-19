@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#eee9df">
+<title>MONOLITH — LLM Playground</title>
+<style>
+:root{
+ --paper:#eee9df;--paper2:#e5dfd3;--surface:#f7f4ed;--surface2:#eae5da;--ink:#242923;
+ --muted:#72766d;--line:#d4cec1;--green:#244d3d;--green2:#356b53;--sage:#a8b39e;
+ --copper:#a76e49;--danger:#a34436;--shadow:0 12px 34px #342c1e12;--radius:14px;
+ --serif:Georgia,"Times New Roman",serif;--sans:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;
+ --mono:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+}
+*{box-sizing:border-box}html,body{height:100%;margin:0}body{height:100vh;height:100dvh;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:14px;overflow:hidden;overflow-x:hidden}
+button,input,textarea,select{font:inherit}button{cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--copper);outline-offset:2px}
+.app{width:100%;height:100%;min-height:0;display:grid;grid-template-columns:252px minmax(0,1fr) 310px;gap:0;max-width:1800px;margin:auto;overflow:hidden}
+.sidebar,.config{background:var(--surface);min-width:0;min-height:0;display:flex;flex-direction:column;overflow:auto;overscroll-behavior:contain}
+.sidebar{border-right:1px solid var(--line);padding:22px 16px 18px}.config{border-left:1px solid var(--line);padding:20px 17px}
+.brand{display:flex;align-items:center;gap:11px;padding:2px 7px 24px}.mark{width:34px;height:34px;border:1px solid var(--green);border-radius:10px;display:grid;place-items:center;color:var(--green);font-family:var(--serif);font-size:22px;position:relative}
+.mark:after{content:"";position:absolute;width:8px;height:8px;border-radius:50%;background:var(--copper);right:-3px;top:-3px}
+.brand-name{font-family:var(--serif);font-size:19px;letter-spacing:.09em}.brand-sub{font:9px var(--mono);color:var(--muted);letter-spacing:.13em;margin-top:3px}
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:9px;padding:9px 12px;display:inline-flex;align-items:center;justify-content:center;gap:7px;transition:.18s ease;white-space:nowrap}
+.btn:hover{border-color:#a9a18f;background:#fffdf8}.btn.primary{background:var(--green);color:#f8f5ed;border-color:var(--green)}.btn.primary:hover{background:var(--green2)}
+.btn.ghost{background:transparent}.btn.danger{color:var(--danger)}.btn.small{padding:6px 8px;font-size:12px}.btn.icon{width:34px;height:34px;padding:0;font-size:16px}
+.new-chat{width:100%;justify-content:flex-start;padding:11px 12px;margin-bottom:24px}
+.section-label{font:10px var(--mono);letter-spacing:.13em;color:var(--muted);text-transform:uppercase;margin:12px 8px 9px}
+.navitem{width:100%;text-align:left;border:0;background:transparent;color:var(--muted);padding:9px 10px;border-radius:8px;display:flex;align-items:center;gap:9px;margin:2px 0}
+.navitem:hover,.navitem.active{background:var(--surface2);color:var(--ink)}.navitem .glyph{width:17px;text-align:center;color:var(--green)}
+.conversation-list{display:flex;flex-direction:column;gap:3px}.conversation{display:flex;align-items:center;gap:5px}.conversation .navitem{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.side-bottom{margin-top:auto;padding-top:22px}.model-chip{border:1px solid var(--line);background:#f0ece3;border-radius:10px;padding:11px;margin-top:10px}
+.mini-label{font:9px var(--mono);letter-spacing:.12em;color:var(--muted);text-transform:uppercase}.model-chip strong{display:block;font:11px var(--mono);margin:6px 0;overflow-wrap:anywhere}.status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#a7a397;margin-right:6px}.status-dot.ok{background:#4c8764}.status-dot.bad{background:var(--danger)}
+.workspace{min-width:0;min-height:0;height:100%;display:flex;flex-direction:column;position:relative;overflow:hidden;background:linear-gradient(135deg,#eee9df,#f1ede5)}
+.topbar{height:65px;flex:none;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 25px;gap:12px}
+.top-title{font-family:var(--serif);font-size:20px}.top-meta{font:10px var(--mono);color:var(--muted);margin-top:3px}.top-actions{display:flex;gap:7px;align-items:center}
+.mobile-toggle{display:none}
+.chat-scroll{flex:1;min-height:0;min-width:0;overflow:auto;overscroll-behavior:contain;padding:30px clamp(18px,5vw,76px) 20px;scroll-behavior:smooth}
+.welcome{max-width:790px;margin:5vh auto 28px;text-align:center;position:relative}
+.eyebrow{font:10px var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--copper)}
+.welcome h1{font:clamp(37px,5vw,62px)/1.04 var(--serif);font-weight:400;letter-spacing:-.035em;margin:16px 0 12px}
+.welcome p{color:var(--muted);max-width:500px;margin:0 auto;line-height:1.7}
+.sculpture{height:160px;width:230px;margin:20px auto 17px;position:relative;display:grid;place-items:center}
+.sculpture .ring{position:absolute;border:1px solid #a76e4966;border-radius:50%;transform:rotate(-25deg);width:180px;height:90px}
+.sculpture .ring.r2{width:150px;height:128px;transform:rotate(38deg);border-color:#244d3d55}
+.sculpture .pillar{width:42px;height:110px;background:linear-gradient(90deg,#8a9b86,#d2c9b6 48%,#7b8c79);clip-path:polygon(18% 0,82% 0,100% 100%,0 100%);box-shadow:0 16px 20px #24292324;position:relative}
+.sculpture .orb{position:absolute;width:25px;height:25px;border-radius:50%;background:radial-gradient(circle at 30% 25%,#f6d9b8,#a76e49 70%);top:22px;right:69px;box-shadow:0 6px 20px #a76e4944}
+.welcome .model-pill{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);padding:7px 11px;border-radius:30px;background:#f8f5ee;font:10px var(--mono);color:var(--green)}
+.starters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;max-width:610px;margin:25px auto}
+.starter{background:#f6f2e9;border:1px solid var(--line);border-radius:10px;padding:12px;text-align:left;transition:.2s}
+.starter:hover{border-color:var(--sage);transform:translateY(-2px)}.starter strong{display:block;font-size:12px;margin-bottom:4px}.starter span{color:var(--muted);font-size:11px;line-height:1.4}
+.messages{max-width:850px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.message{border:1px solid var(--line);background:#f8f5ee;border-radius:13px;box-shadow:0 4px 14px #342c1e08;overflow:hidden}
+.message.user{margin-left:8%;background:#e9eee6;border-color:#cbd5c8}.message.assistant{margin-right:3%}.message.system{border-left:3px solid var(--copper)}
+.msg-head{display:flex;align-items:center;justify-content:space-between;padding:10px 13px;border-bottom:1px solid #d8d2c6}
+.role{font:10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--green);display:flex;align-items:center;gap:7px}
+.role-dot{width:7px;height:7px;border-radius:50%;background:var(--sage)}.msg-actions{display:flex;gap:4px}
+.msg-body{padding:14px 16px;line-height:1.7;overflow-wrap:anywhere;white-space:pre-wrap}
+.msg-body pre{white-space:pre;overflow:auto;background:#262d28;color:#e9eee6;padding:14px;border-radius:9px;font:12px/1.6 var(--mono);position:relative}
+.msg-body code{font-family:var(--mono);font-size:.92em;background:#e9e4d9;padding:2px 4px;border-radius:4px}
+.msg-body pre code{background:transparent;padding:0}
+.code-copy{position:absolute;right:8px;top:8px}
+.edit-area{width:100%;min-height:90px;border:1px solid var(--line);border-radius:8px;padding:10px;background:#fffdf8;resize:vertical}
+.composer-wrap{flex:none;min-width:0;padding:14px clamp(16px,5vw,76px) 18px;background:linear-gradient(0deg,#eee9df 82%,#eee9dfdd)}
+.composer{max-width:850px;margin:auto;border:1px solid #c9c2b4;border-radius:14px;background:#faf8f2;box-shadow:var(--shadow);padding:11px}
+.composer textarea{width:100%;border:0;outline:0;resize:vertical;min-height:74px;max-height:220px;background:transparent;color:var(--ink);padding:7px;font-size:14px;line-height:1.55}
+.composer-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px 3px 0}
+.composer-tools,.composer-actions{display:flex;align-items:center;gap:7px}.hint{font:10px var(--mono);color:var(--muted)}
+.panel-heading{display:flex;align-items:center;justify-content:space-between;margin:0 0 18px}.panel-heading h2{font:23px var(--serif);font-weight:400;margin:0}.panel-sub{font:9px var(--mono);color:var(--muted);letter-spacing:.13em;margin-top:4px}
+.control-group{padding:13px 0;border-top:1px solid var(--line)}.control-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;font-size:12px;font-weight:600}
+.control-title output{font:11px var(--mono);color:var(--green)}
+input[type=range]{width:100%;accent-color:var(--green)}.field{width:100%;border:1px solid var(--line);border-radius:8px;background:#faf8f2;padding:9px 10px;color:var(--ink);font:12px var(--mono)}
+.field:focus{border-color:var(--green)}.field-label{display:block;font-size:11px;color:var(--muted);margin:9px 0 5px}
+select.field{font-family:var(--mono)}.two-col{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.help{font-size:10px;color:var(--muted);line-height:1.45;margin-top:6px}
+details{border-top:1px solid var(--line);padding:12px 0}summary{cursor:pointer;font-size:12px;font-weight:600}
+.checkline{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);margin-top:9px}.checkline input{accent-color:var(--green)}
+.status-card{background:#eeeadf;border:1px solid var(--line);border-radius:9px;padding:10px;margin-top:10px;font-size:11px;line-height:1.5}
+.classification{border:1px solid var(--line);background:#f5f1e8;border-radius:10px;padding:11px;margin-top:10px}
+.classification strong{font:16px var(--serif);color:var(--green)}.class-row{display:flex;justify-content:space-between;gap:8px;margin:7px 0;font-size:10px;color:var(--muted)}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#26362d;color:#f7f4ed;padding:10px 15px;border-radius:9px;box-shadow:var(--shadow);z-index:50;font-size:12px;opacity:0;pointer-events:none;transition:.2s}.toast.show{opacity:1}
+.modal-backdrop{position:fixed;inset:0;background:#1d241f66;z-index:40;display:none;align-items:center;justify-content:center;padding:18px}.modal-backdrop.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--line);border-radius:15px;width:min(560px,100%);max-height:85vh;overflow:auto;padding:20px;box-shadow:0 24px 80px #1b211b40}
+.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}.modal-head h3{font:24px var(--serif);font-weight:400;margin:0}.modal-content{line-height:1.6;font-size:12px}.modal-content p{color:var(--muted)}
+.drawer-shade{display:none}
+@media(max-width:1120px){
+ .app{grid-template-columns:minmax(0,1fr)}
+ .sidebar{position:fixed;z-index:35;left:0;top:0;bottom:0;width:min(270px,86vw);transform:translateX(-105%);transition:transform .25s ease;box-shadow:15px 0 40px #24292320}
+ .sidebar.open{transform:translateX(0)}
+ .config{position:fixed;z-index:30;right:0;top:0;bottom:0;width:min(340px,92vw);box-shadow:-15px 0 40px #24292320;transform:translateX(105%);transition:transform .25s ease}
+ .config.open{transform:translateX(0)}
+ .mobile-toggle{display:inline-flex}
+ .drawer-shade{display:block;position:fixed;inset:0;background:#20282055;z-index:25;opacity:0;pointer-events:none;transition:opacity .2s}
+ .drawer-shade.open{opacity:1;pointer-events:auto}
+ .topbar{padding-left:18px;padding-right:18px}
+}
+@media(max-width:700px){
+ .app{display:block}
+ .workspace{height:100%;width:100%}
+ .topbar{height:58px;padding:0 12px;gap:8px}
+ .top-title{font-size:17px;max-width:66vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ .top-meta{font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:62vw}
+ .top-actions .hide-mobile{display:none}
+ .chat-scroll{padding:18px 12px}
+ .welcome{margin:3vh auto 18px}
+ .welcome h1{font-size:clamp(34px,10vw,40px)}
+ .welcome p{padding:0 8px}
+ .sculpture{height:112px;margin:10px auto}
+ .starters{grid-template-columns:1fr;gap:8px;margin:18px auto}
+ .starter{padding:11px}
+ .message.user{margin-left:2%}
+ .message.assistant{margin-right:0}
+ .msg-head{gap:8px;align-items:flex-start}
+ .msg-actions{flex-wrap:wrap;justify-content:flex-end}
+ .msg-actions .btn{min-width:30px}
+ .composer-wrap{padding:9px 9px max(10px,env(safe-area-inset-bottom))}
+ .composer{padding:9px}
+ .composer textarea{min-height:62px;max-height:160px}
+ .composer-foot{align-items:center;flex-wrap:wrap;gap:8px}
+ .composer-tools{flex-wrap:wrap;gap:5px}
+ .composer-actions{margin-left:auto;gap:5px}
+ .composer-actions .btn{padding:7px 9px}
+ .hint{display:none}
+}
+@media(max-width:380px){
+ .brand-name{font-size:17px}
+ .topbar>div:first-child{gap:7px!important}
+ .top-title{font-size:15px}
+ .composer-tools .btn{padding:6px 7px;font-size:11px}
+ .composer-actions .btn{font-size:11px}
+ .msg-actions .btn{padding:5px 6px;font-size:11px}
+}
+@media(max-height:680px) and (max-width:700px){
+ .chat-scroll{padding-top:10px}
+ .welcome{margin-top:8px}
+ .sculpture{height:82px;margin:5px auto}
+ .sculpture .pillar{height:72px}
+ .sculpture .ring{width:145px;height:70px}
+ .sculpture .ring.r2{width:120px;height:95px}
+ .welcome h1{margin:9px 0;font-size:34px}
+ .welcome .model-pill{margin-top:10px!important}
+ .starters{margin:12px auto}
+}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+ <aside class="sidebar" id="sidebar" aria-label="Main navigation">
+  <div class="brand"><div class="mark">M</div><div><div class="brand-name">MONOLITH AI</div><div class="brand-sub">INTELLIGENCE WORKSPACE</div></div></div>
+  <button class="btn primary new-chat" id="newChat"><span>＋</span> New conversation <span style="margin-left:auto;opacity:.7">⌘K</span></button>
+  <div class="section-label">Workspace</div>
+  <div class="conversation-list" id="conversationList"></div>
+  <div class="section-label">Explore</div>
+  <button class="navitem" id="templatesBtn"><span class="glyph">▤</span> Prompt library</button>
+  <button class="navitem" id="importBtn"><span class="glyph">⇧</span> Import conversation</button>
+  <button class="navitem" id="exportBtn"><span class="glyph">⇩</span> Export conversation</button>
+  <div class="section-label">System</div>
+  <button class="navitem" id="apiBtn"><span class="glyph">⌘</span> API configuration</button>
+  <button class="navitem" id="aboutBtn"><span class="glyph">ⓘ</span> About Monolith</button>
+  <div class="side-bottom">
+   <div class="mini-label">Active model</div>
+   <div class="model-chip"><span class="status-dot" id="sideStatus"></span><span class="mini-label">Selected model</span><strong id="sideModel">openai/gpt-oss-120b</strong><div class="mini-label" id="sideConnection">API not configured</div></div>
+  </div>
+ </aside>
+ <main class="workspace">
+  <header class="topbar">
+   <div style="display:flex;align-items:center;gap:11px;min-width:0">
+    <button class="btn icon mobile-toggle" id="menuToggle" aria-label="Open navigation">☰</button>
+    <div><div class="top-title">Playground <span style="color:var(--copper)">/</span> <span id="chatTitle">Untitled session</span></div><div class="top-meta" id="headerModel">OPENAI/GPT-OSS-120B · GROQ API</div></div>
+   </div>
+   <div class="top-actions">
+    <button class="btn small hide-mobile" id="copyAll">Copy chat</button>
+    <button class="btn small hide-mobile" id="clearChat">Clear</button>
+    <button class="btn icon mobile-toggle" id="configToggle" aria-label="Open settings">⚙</button>
+   </div>
+  </header>
+  <section class="chat-scroll" id="chatScroll" aria-live="polite">
+   <div class="welcome" id="welcome">
+    <div class="eyebrow">A considered space for experimentation</div>
+    <div class="sculpture" aria-hidden="true"><div class="ring"></div><div class="ring r2"></div><div class="pillar"></div><div class="orb"></div></div>
+    <h1>Explore the shape<br>of intelligence.</h1>
+    <p>One focused workspace for prompts, models, and ideas. Tune your parameters, compose a message, and see what emerges.</p>
+    <div style="margin:19px 0"><span class="model-pill"><span class="status-dot"></span> openai/gpt-oss-120b</span></div>
+    <div class="starters">
+     <button class="starter" data-template="python"><strong>⌘ &nbsp; Build with Python</strong><span>Generate a clean, documented solution to a coding problem.</span></button>
+     <button class="starter" data-template="debug"><strong>⌁ &nbsp; Debug a program</strong><span>Trace an issue and explain a reliable fix.</span></button>
+     <button class="starter" data-template="explain"><strong>◫ &nbsp; Understand a concept</strong><span>Break down a technical topic with examples.</span></button>
+     <button class="starter" data-template="fewshot"><strong>≋ &nbsp; Try few-shot prompting</strong><span>Classify a new input using explicit examples.</span></button>
+    </div>
+    <div class="mini-label">Compose below to begin · API key required for live generation</div>
+   </div>
+   <div class="messages" id="messages"></div>
+  </section>
+  <section class="composer-wrap">
+   <div class="composer">
+    <textarea id="composer" placeholder="Write a prompt… (Shift + Enter for a new line)" aria-label="Message prompt"></textarea>
+    <div class="composer-foot">
+     <div class="composer-tools"><button class="btn small ghost" id="addSystem">＋ System</button><button class="btn small ghost" id="addUser">＋ Message</button><span class="hint" id="counts">0 characters · ~0 tokens</span></div>
+     <div class="composer-actions"><button class="btn small" id="stopBtn" disabled>■ Stop</button><button class="btn primary" id="sendBtn">Generate ↗</button></div>
+    </div>
+   </div>
+   <div class="hint" style="max-width:850px;margin:7px auto 0;text-align:right">Enter to generate · Shift + Enter for newline</div>
+  </section>
+ </main>
+ <aside class="config" id="config" aria-label="Generation settings">
+  <div class="panel-heading"><div><h2>Configuration</h2><div class="panel-sub">MODEL & GENERATION CONTROLS</div></div><button class="btn icon mobile-toggle" id="closeConfig" aria-label="Close settings">×</button></div>
+  <div class="control-group" style="border-top:0;padding-top:0">
+   <div class="control-title">Model selection <span class="mini-label">GROQ</span></div>
+   <select class="field" id="modelSelect">
+    <option value="openai/gpt-oss-120b">openai/gpt-oss-120b</option>
+    <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile</option>
+    <option value="llama-3.1-8b-instant">llama-3.1-8b-instant</option>
+    <option value="meta-llama/llama-4-scout-17b-16e-instruct">meta-llama/llama-4-scout-17b-16e-instruct</option>
+    <option value="qwen/qwen3-32b">qwen/qwen3-32b</option>
+    <option value="custom">Custom model ID…</option>
+   </select>
+   <label class="field-label" for="manualModel">Manual model ID</label><input class="field" id="manualModel" placeholder="provider/model-id">
+   <div class="help">Fallback list is provided for convenience. Model availability can change; verify against your Groq account.</div>
+   <button class="btn small" id="discoverModels" style="margin-top:9px;width:100%">↻ Discover available models</button>
+   <div class="mini-label" id="modelSource" style="margin-top:7px">Initial reference model · fallback list</div>
+  </div>
+  <div class="control-group">
+   <div class="control-title"><label for="temperature">Temperature</label><output id="tempOut">0.70</output></div>
+   <input type="range" id="temperature" min="0" max="2" step=".01" value=".7"><div class="help">Controls randomness. Lower values are more focused; higher values are more varied.</div>
+  </div>
+  <div class="control-group">
+   <div class="control-title"><label for="maxTokens">Max completion tokens</label></div><input class="field" type="number" id="maxTokens" min="1" max="32768" value="2048">
+   <div class="help">Upper limit for generated completion tokens. Model-specific limits apply.</div>
+  </div>
+  <div class="control-group">
+   <div class="control-title"><label for="topP">Top-p</label><output id="topPOut">1.00</output></div>
+   <input type="range" id="topP" min="0" max="1" step=".01" value="1">
+   <div class="help">Nucleus sampling. Usually adjust temperature or top-p, not both.</div>
+  </div>
+  <div class="control-group">
+   <label class="field-label" for="stopSequences">Stop sequences</label><textarea class="field" id="stopSequences" rows="2" placeholder="One sequence per line"></textarea>
+   <div class="help">Generation stops when one of these strings is produced.</div>
+  </div>
+  <details><summary>Advanced parameters</summary>
+   <label class="field-label" for="presencePenalty">Presence penalty (−2 to 2)</label><input class="field" id="presencePenalty" type="number" min="-2" max="2" step=".1" value="0">
+   <label class="field-label" for="frequencyPenalty">Frequency penalty (−2 to 2)</label><input class="field" id="frequencyPenalty" type="number" min="-2" max="2" step=".1" value="0">
+   <label class="field-label" for="seed">Seed (optional)</label><input class="field" id="seed" type="number" placeholder="Random">
+   <label class="field-label" for="responseFormat">Response format</label><select class="field" id="responseFormat"><option value="text">Text</option><option value="json_object">JSON object</option></select>
+   <label class="checkline"><input type="checkbox" id="streaming" checked> Stream response tokens</label>
+  </details>
+  <div class="control-group">
+   <div class="control-title">Prompt-shot classification <span class="mini-label">HEURISTIC</span></div>
+   <div class="classification"><div class="class-row"><span>Detected technique</span><span id="shotConfidence">—</span></div><strong id="shotType">Zero-shot</strong><div class="class-row"><span>Demonstrations</span><b id="shotCount">0</b></div><div class="help" id="shotExplain">No explicit input/output demonstrations detected in user messages.</div><button class="btn small" id="inspectShot" style="width:100%;margin-top:10px">Inspect classification</button></div>
+  </div>
+  <div class="control-group">
+   <div class="control-title">Effective request</div><div class="status-card" id="effective">model: openai/gpt-oss-120b<br>temperature: 0.70<br>max_tokens: 2048<br>top_p: 1.00</div>
+  </div>
+  <div class="control-group">
+   <div class="control-title">Connection <span class="mini-label">SECURITY</span></div>
+   <div class="status-card"><span class="status-dot" id="connectionDot"></span><span id="connectionText">No API key configured</span></div>
+   <button class="btn small" id="openApi" style="width:100%;margin-top:9px">Configure API key</button>
+  </div>
+ </aside>
+</div>
+<div class="drawer-shade" id="shade"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="modal-backdrop" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+ <div class="modal"><div class="modal-head"><h3 id="modalTitle">Dialog</h3><button class="btn icon" id="modalClose" aria-label="Close dialog">×</button></div><div class="modal-content" id="modalContent"></div></div>
+</div>
+<input type="file" id="importFile" accept="application/json,.json" hidden>
+<script>
+(() => {
+"use strict";
+const API_BASE="/api/groq";
+const $=id=>document.getElementById(id);
+const state={model:"openai/gpt-oss-120b",models:[],conversations:[],activeId:null,controller:null,generating:false,source:"fallback"};
+const templates={
+ python:"Write a robust Python solution for the following problem. Explain the approach, provide clean code with type hints, and include time and space complexity.\n\nProblem: ",
+ debug:"Help me debug the following code. Identify the root cause, explain why it happens, provide a corrected version, and suggest a test case.\n\nCode:\n```python\n\n```\n\nObserved behaviour: ",
+ explain:"Explain the following technical concept from first principles. Use a concise analogy, a worked example, common misconceptions, and a short recap.\n\nConcept: ",
+ summary:"Summarize the text below. Separate the main argument, supporting points, and practical takeaways.\n\nText:\n",
+ creative:"Write an engaging, original piece based on this brief. Establish a distinct voice, use vivid but economical language, and avoid clichés.\n\nBrief: ",
+ analysis:"Analyze the following data. State assumptions, identify patterns and anomalies, and distinguish evidence from interpretation.\n\nData:\n",
+ email:"Draft a clear, professional email using the context below. Include a useful subject line and a concise call to action.\n\nContext:\n",
+ json:"Return only a valid JSON object matching this requested structure. Do not include Markdown fences or explanatory text.\n\nRequired structure and data:\n",
+ classify:"Classify the following message as SPAM or NOT SPAM. Return the label first, followed by a brief explanation.\n\nMessage: ",
+ fewshot:"Classify customer intent as BILLING, TECHNICAL, or GENERAL.\n\nInput: I was charged twice this month.\nOutput: BILLING\n\nInput: The app crashes when I sign in.\nOutput: TECHNICAL\n\nInput: Where can I find your office?\nOutput: GENERAL\n\nInput: "
+};
+function active(){return state.conversations.find(c=>c.id===state.activeId)}
+function newConversation(){const c={id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),title:"Untitled session",messages:[],created:Date.now()};state.conversations.unshift(c);state.activeId=c.id;render();closeDrawers();$("composer").focus()}
+function toast(s){const t=$("toast");t.textContent=s;t.classList.add("show");clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.classList.remove("show"),2600)}
+function safeText(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function escapeHtml(s){return safeText(s)}
+function formatContent(text){
+ const codeBlocks=[];
+ const prepared=String(text??"").replace(/```([a-zA-Z0-9_-]*)\n?([\s\S]*?)```/g,(_,lang,code)=>{
+  const index=codeBlocks.length;
+  const copyValue=encodeURIComponent(code);
+  codeBlocks.push(`<pre><button class="btn small code-copy" data-copy="${copyValue}">Copy code</button><code>${escapeHtml(code.replace(/^\n/,""))}</code></pre>`);
+  return `@@MONOLITH_CODE_${index}@@`;
+ });
+ const formatted=escapeHtml(prepared).replace(/`([^`\n]+)`/g,"<code>$1</code>").replace(/\n/g,"<br>");
+ return formatted.replace(/@@MONOLITH_CODE_(\d+)@@/g,(_,index)=>codeBlocks[Number(index)]??"");
+}
+function render(){
+ const c=active();$("chatTitle").textContent=c?.title||"Untitled session";$("welcome").style.display=c&&c.messages.length?"none":"block";
+ $("messages").innerHTML="";
+ if(c)c.messages.forEach((m,i)=>{const el=document.createElement("article");el.className="message "+m.role;el.dataset.index=i;
+  const role=m.role==="assistant"?"Model":m.role==="user"?"You":"System";
+  el.innerHTML=`<div class="msg-head"><div class="role"><span class="role-dot"></span>${role} <span style="color:var(--muted)">#${i+1}</span></div><div class="msg-actions"><button class="btn small" data-action="up" title="Move up">↑</button><button class="btn small" data-action="down" title="Move down">↓</button><button class="btn small" data-action="edit">Edit</button><button class="btn small" data-action="copy">Copy</button><button class="btn small danger" data-action="delete">Delete</button></div></div><div class="msg-body">${formatContent(m.content)}</div>`;
+  $("messages").appendChild(el);
+ });
+ $("conversationList").innerHTML="";
+ state.conversations.slice(0,12).forEach(c=>{const row=document.createElement("div");row.className="conversation";row.innerHTML=`<button class="navitem ${c.id===state.activeId?"active":""}" data-id="${c.id}"><span class="glyph">◌</span>${safeText(c.title)}</button>`;$("conversationList").appendChild(row)});
+ $("sideModel").textContent=state.model;$("headerModel").textContent=state.model.toUpperCase()+" · GROQ API";$("modelSelect").value=[...$("modelSelect").options].some(o=>o.value===state.model)?state.model:"custom";$("manualModel").value=$("modelSelect").value==="custom"?state.model:"";
+ updateConnection();updateClassification();updateEffective();updateCounts();
+ $("chatScroll").scrollTop=$("chatScroll").scrollHeight;
+}
+function addMessage(role,content){const c=active();if(!c)return; c.messages.push({role,content:String(content)});if(c.title==="Untitled session"&&role==="user"){c.title=content.slice(0,34).replace(/\s+/g," ")||"New conversation"}render()}
+function updateCounts(){const s=$("composer").value;$("counts").textContent=`${s.length} characters · ~${Math.ceil(s.length/4)} tokens`;}
+function updateConnection(){$("connectionDot").className="status-dot";$("connectionText").textContent="Secure server-side connection";$("sideStatus").className="status-dot";$("sideConnection").textContent="API key stored on server";}
+ function updateEffective(){const v={model:state.model,temperature:+$("temperature").value,max_tokens:+$("maxTokens").value,top_p:+$("topP").value};$("effective").textContent=Object.entries(v).map(([k,x])=>`${k}: ${typeof x==="number"?x.toFixed(k==="max_tokens"?0:2):x}`).join("\n");}
+function classify(){
+ const msgs=(active()?.messages||[]).filter(m=>m.role==="user").map(m=>m.content).join("\n");
+ // Conservative heuristic: count labelled input/output pairs or explicit example blocks.
+ const patterns=[/(?:^|\n)\s*(?:input|example input|user)\s*[:：][\s\S]{1,180}?(?:\n\s*(?:output|expected output|assistant)\s*[:：])/gi,/(?:^|\n)\s*(?:example|sample)\s*\d*\s*[:：][\s\S]{1,220}?(?:\n\s*(?:label|output|answer)\s*[:：])/gi];
+ let found=[];patterns.forEach(re=>{for(const m of msgs.matchAll(re))found.push(m[0].trim())});
+ // Deduplicate overlapping hits; use strongest explicit labelled demonstration pattern.
+ found=[...new Set(found)];
+ const n=found.length;return {n,type:n===0?"Zero-shot":n===1?"One-shot":"Few-shot",confidence:n===0?(msgs.length?".78":"—"):n===1?".74":".82",evidence:found.slice(0,5)};
+}
+function updateClassification(){const r=classify();$("shotType").textContent=r.type;$("shotCount").textContent=r.n;$("shotConfidence").textContent=r.confidence==="—"?"No prompt":`~${r.confidence}`;$("shotExplain").textContent=r.n?`Detected ${r.n} explicit labelled input/output demonstration${r.n===1?"":"s"} in user messages.`:"No explicit labelled input/output demonstrations detected in user messages."}
+function modal(title,html){$("modalTitle").textContent=title;$("modalContent").innerHTML=html;$("modal").classList.add("open");$("modalClose").focus()}
+function closeModal(){$("modal").classList.remove("open")}
+function closeDrawers(){$("sidebar").classList.remove("open");$("config").classList.remove("open");$("shade").classList.remove("open")}
+function openDrawer(which){closeDrawers();$(which).classList.add("open");$("shade").classList.add("open")}
+function getSettings(){
+ const max=Number($("maxTokens").value),temp=Number($("temperature").value),top=Number($("topP").value),pp=Number($("presencePenalty").value),fp=Number($("frequencyPenalty").value);
+ if(!Number.isInteger(max)||max<1||max>32768)throw Error("Maximum completion tokens must be an integer from 1 to 32768.");
+ for(const [name,v,min,maxv] of [["Temperature",temp,0,2],["Top-p",top,0,1],["Presence penalty",pp,-2,2],["Frequency penalty",fp,-2,2]])if(!Number.isFinite(v)||v<min||v>maxv)throw Error(`${name} must be between ${min} and ${maxv}.`);
+ const s={model:state.model,temperature:temp,max_completion_tokens:max,top_p:top,presence_penalty:pp,frequency_penalty:fp};
+ const stops=$("stopSequences").value.split("\n").map(x=>x.trim()).filter(Boolean);if(stops.length)s.stop=stops;
+ if($("seed").value.trim()){const seed=Number($("seed").value);if(!Number.isInteger(seed))throw Error("Seed must be an integer.");s.seed=seed}
+ if($("responseFormat").value==="json_object")s.response_format={type:"json_object"};
+ return s;
+}
+function requestBody(messages,settings,stream){const body={...settings,messages,stream};delete body.max_completion_tokens;body.max_tokens=settings.max_completion_tokens;return body}
+async function generate(overrideMessages){
+ if(state.generating)return;
+ const c=active();if(!c)return;
+ let messages=overrideMessages||c.messages.map(m=>({role:m.role,content:m.content}));
+ if(!messages.length||messages[messages.length-1].role!=="user"){toast("Add a user message before generating.");return}
+ let settings;try{settings=getSettings()}catch(e){toast(e.message);return}
+ const assistant={role:"assistant",content:""};c.messages.push(assistant);state.generating=true;state.controller=new AbortController();setGenerating(true);render();
+ try{
+  const stream=$("streaming").checked;
+  const res=await fetch(API_BASE+"/chat/completions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"chat/completions",...requestBody(messages,settings,stream)}),signal:state.controller.signal});
+  if(!res.ok){let detail="";try{const j=await res.json();detail=j.error?.message||j.message||""}catch{};const msg=res.status===401?"Invalid API key. Check your Groq key.":res.status===429?"Groq rate limit or quota reached. Wait and retry.":res.status===404?"Model not found or unavailable to this account. Verify the model ID.":`Groq request failed (HTTP ${res.status}).`;throw Error(detail?msg+" "+detail:msg)}
+  if(stream&&res.body&&res.body.getReader){
+   const reader=res.body.getReader(),decoder=new TextDecoder();let buffer="";
+   while(true){const {value,done}=await reader.read();if(done)break;buffer+=decoder.decode(value,{stream:true});const lines=buffer.split("\n");buffer=lines.pop()||"";
+    for(const line of lines){const t=line.trim();if(!t.startsWith("data:"))continue;const data=t.slice(5).trim();if(data==="[DONE]")continue;let packet;try{packet=JSON.parse(data)}catch{continue}
+     const delta=packet.choices?.[0]?.delta?.content;if(typeof delta==="string"){assistant.content+=delta;updateStreamingMessage(assistant.content)}
+     const reason=packet.choices?.[0]?.finish_reason;if(reason)assistant.finish_reason=reason;
+    }
+   }
+   if(buffer.trim().startsWith("data:")){const d=buffer.trim().slice(5).trim();if(d&&d!=="[DONE]"){try{assistant.content+=JSON.parse(d).choices?.[0]?.delta?.content||""}catch{}}}
+  }else{
+   const data=await res.json();const content=data.choices?.[0]?.message?.content;if(typeof content!=="string")throw Error("Groq returned an unexpected response format.");assistant.content=content;
+  }
+  if(!assistant.content)assistant.content="[The model returned an empty response.]";
+ }catch(e){
+  if(e.name==="AbortError"){if(assistant.content)assistant.content+="\n\n[Generation stopped by user — partial response.]";else assistant.content="[Generation cancelled.]"}
+  else{assistant.content=assistant.content?assistant.content+`\n\n[Request interrupted: ${e.message}]`:`[${e.message}]`;toast(e.message)}
+ }finally{state.generating=false;state.controller=null;setGenerating(false);render()}
+}
+function updateStreamingMessage(content){const el=$("messages").lastElementChild;if(el){const body=el.querySelector(".msg-body");if(body)body.innerHTML=formatContent(content);$("chatScroll").scrollTop=$("chatScroll").scrollHeight}}
+function setGenerating(on){$("sendBtn").disabled=on;$("sendBtn").textContent=on?"Generating…":"Generate ↗";$("stopBtn").disabled=!on;$("composer").disabled=on}
+function apiDialog(){modal("Secure API connection","<p>MONOLITH routes requests through a server-side function. Your Groq API key is never entered into this page, stored in browser storage, or sent to the browser.</p><p>Add <code>GROQ_API_KEY</code> to your Vercel project Environment Variables, then redeploy.</p><div class=\"status-card\">Never place API keys in HTML, JavaScript, GitHub commits, or public environment variables.</div>");}
+ function templatesDialog(){const names=[["python","Python code generation"],["debug","Code debugging"],["explain","Technical explanation"],["summary","Text summarization"],["creative","Creative writing"],["analysis","Data analysis"],["email","Email drafting"],["json","JSON generation"],["classify","Classification"],["fewshot","Few-shot prompting"]];modal("Prompt library",`<p>Choose a starting point. The template is inserted into the composer and is not sent automatically.</p><div style="display:grid;gap:7px">${names.map(([k,n])=>`<button class="btn" style="justify-content:space-between" data-use-template="${k}">${n}<span>↗</span></button>`).join("")}</div>`)}
+function exportConversation(){const c=active();if(!c){toast("No conversation to export.");return}const blob=new Blob([JSON.stringify({format:"monolith-conversation",version:1,title:c.title,created:c.created,messages:c.messages},null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="monolith-conversation.json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);toast("Conversation exported")}
+function importConversation(file){const reader=new FileReader();reader.onload=()=>{try{const data=JSON.parse(reader.result);const msgs=Array.isArray(data)?data:data.messages;if(!Array.isArray(msgs)||!msgs.length)throw Error("The file must contain a non-empty messages array.");const clean=msgs.map((m,i)=>{if(!m||!["system","user","assistant"].includes(m.role)||typeof m.content!=="string")throw Error(`Invalid message at position ${i+1}.`);return {role:m.role,content:m.content}});const c={id:String(Date.now()),title:String(data.title||"Imported conversation").slice(0,60),created:Date.now(),messages:clean};state.conversations.unshift(c);state.activeId=c.id;render();toast("Conversation imported")}catch(e){toast("Import failed: "+e.message)}};reader.onerror=()=>toast("Could not read the selected file.");reader.readAsText(file)}
+function editMessage(i){const m=active().messages[i];modal("Edit message",`<label class="field-label" for="editContent">Message content · ${m.role}</label><textarea class="field" id="editContent" rows="9">${safeText(m.content)}</textarea><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="btn" id="cancelEdit">Cancel</button><button class="btn primary" id="saveEdit">Save changes</button></div>`);$("cancelEdit").onclick=closeModal;$("saveEdit").onclick=()=>{m.content=$("editContent").value;closeModal();render()}}
+function copy(text){if(navigator.clipboard?.writeText)navigator.clipboard.writeText(text).then(()=>toast("Copied to clipboard")).catch(()=>fallbackCopy(text));else fallbackCopy(text)}
+function fallbackCopy(text){const t=document.createElement("textarea");t.value=text;document.body.appendChild(t);t.select();document.execCommand("copy");t.remove();toast("Copied to clipboard")}
+function regenerate(){const c=active();if(!c)return;let i=c.messages.length-1;if(i<0||c.messages[i].role!=="assistant"){toast("No assistant response to regenerate.");return}c.messages.pop();const msgs=c.messages.map(m=>({role:m.role,content:m.content}));generate(msgs)}
+// Events
+$("newChat").onclick=newConversation;$("menuToggle").onclick=()=>openDrawer("sidebar");$("configToggle").onclick=()=>openDrawer("config");$("closeConfig").onclick=closeDrawers;$("shade").onclick=closeDrawers;
+$("apiBtn").onclick=apiDialog;$("openApi").onclick=apiDialog;$("aboutBtn").onclick=()=>modal("About MONOLITH AI",`<p><b>Explore. Experiment. Engineer Intelligence.</b></p><p>MONOLITH is a Groq-powered LLM playground. Requests are routed through a server-side function so the API key remains in Vercel environment variables.</p><p>The browser never receives the API key. Model availability depends on the connected Groq account.</p><p class="mini-label">MONOLITH · VERSION 1.1</p>`);$("templatesBtn").onclick=templatesDialog;
+$("exportBtn").onclick=exportConversation;$("importBtn").onclick=()=>$("importFile").click();$("importFile").onchange=e=>{if(e.target.files[0])importConversation(e.target.files[0]);e.target.value=""};
+$("copyAll").onclick=()=>copy((active()?.messages||[]).map(m=>`[${m.role.toUpperCase()}]\n${m.content}`).join("\n\n"));
+$("clearChat").onclick=()=>{const c=active();if(c){c.messages=[];c.title="Untitled session";render();toast("Conversation cleared")}};
+$("conversationList").onclick=e=>{const b=e.target.closest("[data-id]");if(b){state.activeId=b.dataset.id;render()}};
+$("messages").onclick=e=>{const copyCode=e.target.closest("[data-copy]");if(copyCode){copy(decodeURIComponent(copyCode.dataset.copy));return}const btn=e.target.closest("[data-action]");if(!btn)return;const el=btn.closest(".message"),i=+el.dataset.index,c=active(),action=btn.dataset.action,m=c.messages[i];if(action==="copy")copy(m.content);if(action==="edit")editMessage(i);if(action==="delete"){c.messages.splice(i,1);render()}if(action==="up"&&i>0){[c.messages[i-1],c.messages[i]]=[c.messages[i],c.messages[i-1]];render()}if(action==="down"&&i<c.messages.length-1){[c.messages[i+1],c.messages[i]]=[c.messages[i],c.messages[i+1]];render()}};
+$("messages").addEventListener("dblclick",e=>{const el=e.target.closest(".message");if(el)editMessage(+el.dataset.index)});
+$("composer").addEventListener("input",updateCounts);
+$("composer").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();$("sendBtn").click()}});
+$("sendBtn").onclick=()=>{const s=$("composer").value.trim();if(!s)return;if(!active())newConversation();addMessage("user",s);$("composer").value="";updateCounts();generate()};
+$("stopBtn").onclick=()=>{if(state.controller)state.controller.abort()};
+$("addSystem").onclick=()=>{if(!active())newConversation();addMessage("system","You are a helpful assistant.");toast("System message added")};
+$("addUser").onclick=()=>{if(!active())newConversation();modal("Add message",`<label class="field-label" for="newRole">Role</label><select class="field" id="newRole"><option>user</option><option>system</option><option>assistant</option></select><label class="field-label" for="newContent">Content</label><textarea class="field" id="newContent" rows="5" placeholder="Message content"></textarea><button class="btn primary" id="insertMessage" style="margin-top:10px">Insert message</button>`);$("insertMessage").onclick=()=>{if(!$("newContent").value.trim())return;addMessage($("newRole").value,$("newContent").value);closeModal()}};
+$("temperature").oninput=()=>{$("tempOut").textContent=(+$("temperature").value).toFixed(2);updateEffective()};$("topP").oninput=()=>{$("topPOut").textContent=(+$("topP").value).toFixed(2);updateEffective()};
+["maxTokens","presencePenalty","frequencyPenalty","seed","stopSequences","responseFormat"].forEach(id=>$(id).addEventListener("input",updateEffective));
+$("modelSelect").onchange=()=>{if($("modelSelect").value!=="custom")state.model=$("modelSelect").value;else{$("manualModel").focus();return}render()};
+$("manualModel").onchange=()=>{const v=$("manualModel").value.trim();if(v){state.model=v;$("modelSource").textContent="Manually entered model ID";render()}};
+$("discoverModels").onclick=async()=>{const b=$("discoverModels");b.disabled=true;b.textContent="Discovering…";try{const r=await fetch(API_BASE,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"models"})});if(!r.ok)throw Error("HTTP "+r.status);const d=await r.json();state.models=(d.data||[]).map(x=>x.id).filter(Boolean).sort();if(!state.models.length)throw Error("No model IDs returned.");const sel=$("modelSelect");[...sel.querySelectorAll("option[data-dynamic]")].forEach(o=>o.remove());state.models.forEach(id=>{if(![...sel.options].some(o=>o.value===id)){const o=new Option(id,id);o.dataset.dynamic="1";sel.insertBefore(o,sel.querySelector('option[value="custom"]'))}});state.source="dynamic";$("modelSource").textContent=`${state.models.length} dynamically discovered models`;toast("Model list updated")}catch(e){toast("Model discovery failed: "+e.message)}finally{b.disabled=false;b.textContent="↻ Discover available models"}};
+$("inspectShot").onclick=()=>{const r=classify();modal("Prompt-shot inspection",`<p><b>${r.type}</b> · ${r.n} explicit demonstration(s) detected.</p><p>This heuristic only counts labelled input/output or example/label pairs inside user-provided messages. Contextual descriptions and system messages are not counted. It is an estimate, not definitive linguistic analysis.</p>${r.evidence.length?`<div style="display:grid;gap:7px">${r.evidence.map((x,i)=>`<div class="status-card"><b>Evidence ${i+1}</b><br>${safeText(x.slice(0,450))}</div>`).join("")}</div>`:"<p>No qualifying labelled pairs were found in user messages.</p>"}`)};
+$("modalClose").onclick=closeModal;$("modal").onclick=e=>{if(e.target===$("modal"))closeModal()};
+$("modalContent").onclick=e=>{const b=e.target.closest("[data-use-template]");if(b){$("composer").value=templates[b.dataset.useTemplate];updateCounts();closeModal();$("composer").focus()}};
+document.querySelectorAll("[data-template]").forEach(b=>b.onclick=()=>{$("composer").value=templates[b.dataset.template];updateCounts();$("composer").focus()});
+document.addEventListener("keydown",e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="k"){e.preventDefault();newConversation()}if(e.key==="Escape"){closeModal();closeDrawers()}});
+function init(){newConversation();$("modelSelect").value=state.model;updateConnection();updateClassification();updateEffective()}
+init();
+})();
+</script>
+</body>
+</html>
